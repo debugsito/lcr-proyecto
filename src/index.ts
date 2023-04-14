@@ -3,7 +3,7 @@ import AWS from "aws-sdk";
 import config from "./config";
 
 AWS.config.update({ region: config.dynamodb.region, });
-const lambda = new AWS.Lambda();
+const lambda = new AWS.Lambda({ region: config.dynamodb.region, });
 const dynamodb = new AWS.DynamoDB();
 const sqs = new AWS.SQS();
 const eventbridge = new AWS.EventBridge();
@@ -15,9 +15,9 @@ async function main() {
   const redisClient = RedisClientSingleton.getInstance();
   await redisClient.connect();
   // await createTable();
+  // return 0;
   // await createSQS();
   // await createEventBridge();
-  // await createSQS();
   // await crearDisparador();
 
   const data = await redisClient.getListData('mi_lista');
@@ -29,7 +29,7 @@ async function main() {
     if(result_function!==false){
       let respuesta = JSON.parse(<string>result_function.Payload);
       console.log(respuesta)
-      // await sendEvent(row,<string>result_function.Payload);
+      await sendEvent(row,<string>result_function.Payload);
     }
   }
 
@@ -95,16 +95,10 @@ async function sendEvent(input:string,output:string){
 async function createEventBridge(){
   const params = {
     Name: 'ruleLCR',
-    EventPattern: {
-      source: ['miFuente'],
-    },
+    EventPattern: JSON.stringify({
+      detailType: ['miTipoDeDetalle'],
+    }),
     State: 'ENABLED',
-    Targets: [
-      {
-        Arn: 'arn:aws:sqs:us-east-2:042773476994:ruleLCR',
-        Id: 'miTarget',
-      },
-    ],
   };
 
   // @ts-ignore
@@ -133,16 +127,12 @@ async function createTable(){
   const params = {
     TableName: 'miTabla',
     KeySchema: [
-      { AttributeName: 'id', KeyType: 'HASH' },
       { AttributeName: 'input', KeyType: 'HASH' },
-      { AttributeName: 'output', KeyType: 'HASH' },
-      { AttributeName: 'timestamp', KeyType: 'RANGE' },
+      { AttributeName: 'output', KeyType: 'RANGE' },
     ],
     AttributeDefinitions: [
-      { AttributeName: 'id', AttributeType: 'S' },
       { AttributeName: 'input', AttributeType: 'S' },
       { AttributeName: 'output', AttributeType: 'S' },
-      { AttributeName: 'timestamp', AttributeType: 'N' },
     ],
     ProvisionedThroughput: {
       ReadCapacityUnits: 5,
